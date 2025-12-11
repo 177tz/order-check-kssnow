@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>訂單查詢系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-4">
+
+    <div class="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden md:max-w-2xl p-6">
+        <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">📦 訂單配貨查詢</h2>
+        
+        <div class="mb-4">
+            <label class="block text-gray-700 text-sm font-bold mb-2" for="searchName">
+                請輸入您的暱稱或電話
+            </label>
+            <div class="flex gap-2">
+                <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" 
+                       id="searchName" type="text" placeholder="例如：Yuu">
+                <button onclick="searchOrder()" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                    查詢
+                </button>
+            </div>
+        </div>
+
+        <div id="loading" class="hidden text-center py-4 text-gray-500">資料讀取中...</div>
+
+        <div id="resultArea" class="space-y-4">
+            </div>
+    </div>
+
+    <script>
+        // *** 請把這裡換成您剛剛複製的 Google Apps Script 網址 ***
+        const API_URL = 'https://script.google.com/macros/s/AKfycbynblO8bLAQGgRHJZwNwF59USAXDk6wrdoVphvXrE4WJeK5TPG4iG2ujk28XEsSEt4xYQ/exec'; 
+
+        let allData = [];
+
+        // 查詢按鈕功能
+        function searchOrder() {
+            const inputName = document.getElementById('searchName').value.trim();
+            const resultArea = document.getElementById('resultArea');
+            const loading = document.getElementById('loading');
+
+            if (!inputName) {
+                alert("請輸入名稱！");
+                return;
+            }
+
+            resultArea.innerHTML = '';
+            loading.classList.remove('hidden');
+
+            // 如果已經抓過資料，就不用再抓一次，直接篩選
+            if (allData.length > 0) {
+                filterAndShow(inputName);
+                return;
+            }
+
+            // 從 Google Sheet 抓資料
+            fetch(API_URL)
+                .then(response => response.json())
+                .then(data => {
+                    allData = data; // 存起來
+                    filterAndShow(inputName);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    resultArea.innerHTML = '<p class="text-red-500 text-center">讀取失敗，請稍後再試</p>';
+                })
+                .finally(() => {
+                    loading.classList.add('hidden');
+                });
+        }
+
+        // 篩選並顯示
+        function filterAndShow(keyword) {
+            const resultArea = document.getElementById('resultArea');
+            const loading = document.getElementById('loading');
+            
+            // 模糊搜尋 (只要包含關鍵字就顯示)
+            const results = allData.filter(item => 
+                item.name.toString().includes(keyword)
+            );
+
+            loading.classList.add('hidden');
+
+            if (results.length === 0) {
+                resultArea.innerHTML = '<p class="text-center text-gray-500">查無此人的訂單資料 🤔</p>';
+                return;
+            }
+
+            // 產生卡片列表
+            let html = '';
+            results.forEach(order => {
+                // 根據配貨結果變更顏色
+                let statusColor = order.status.includes('成功') || order.status.includes('有貨') ? 'text-green-600' : 'text-red-600';
+                
+                html += `
+                    <div class="border-l-4 ${order.status.includes('成功') ? 'border-green-500' : 'border-red-500'} bg-gray-50 p-4 rounded shadow-sm">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h3 class="font-bold text-lg text-gray-800">${order.item}</h3>
+                                <p class="text-gray-600 text-sm">數量: ${order.qty}</p>
+                            </div>
+                            <span class="font-bold ${statusColor}">${order.status}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            resultArea.innerHTML = html;
+        }
+    </script>
+</body>
+</html>
