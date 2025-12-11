@@ -37,39 +37,67 @@
         let allData = [];
 
         // 查詢按鈕功能
+        // 查詢按鈕功能
         function searchOrder() {
             const inputName = document.getElementById('searchName').value.trim();
             const resultArea = document.getElementById('resultArea');
             const loading = document.getElementById('loading');
 
             if (!inputName) {
-                alert("請輸入名稱！");
+                alert("請輸入資料！");
                 return;
             }
 
             resultArea.innerHTML = '';
             loading.classList.remove('hidden');
 
-            // 如果已經抓過資料，就不用再抓一次，直接篩選
-            if (allData.length > 0) {
-                filterAndShow(inputName);
-                return;
-            }
+            // ❌ 刪除原本的這一段 (不需要存 allData 了)
+            // if (allData.length > 0) { ... }
 
-            // 從 Google Sheet 抓資料
-            fetch(API_URL)
+            // ✅ 改成這樣：把查詢字串 (q=名字) 附加在網址後面傳給 GAS
+            const searchUrl = API_URL + "?q=" + encodeURIComponent(inputName);
+
+            fetch(searchUrl)
                 .then(response => response.json())
                 .then(data => {
-                    allData = data; // 存起來
-                    filterAndShow(inputName);
+                    // 因為後端已經篩選過了，回傳的 data 就是結果
+                    showResults(data); 
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    resultArea.innerHTML = '<p class="text-red-500 text-center">讀取失敗，請稍後再試</p>';
+                    resultArea.innerHTML = '<p class="text-red-500 text-center">查詢發生錯誤</p>';
                 })
                 .finally(() => {
                     loading.classList.add('hidden');
                 });
+        }
+
+        // 顯示結果的函式 (原本叫 filterAndShow，現在直接顯示就好)
+        function showResults(results) {
+            const resultArea = document.getElementById('resultArea');
+            
+            if (results.length === 0) {
+                resultArea.innerHTML = '<p class="text-center text-gray-500">查無資料 🤷‍♂️</p>';
+                return;
+            }
+
+            let html = '';
+            results.forEach(order => {
+                let statusColor = order.status.includes('成功') || order.status.includes('有貨') ? 'text-green-600' : 'text-red-600';
+                
+                html += `
+                    <div class="border-l-4 ${order.status.includes('成功') ? 'border-green-500' : 'border-red-500'} bg-gray-50 p-4 rounded shadow-sm">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h3 class="font-bold text-lg text-gray-800">${order.item}</h3>
+                                <p class="text-gray-600 text-sm">訂購人: ${order.name}</p>
+                            </div>
+                            <span class="font-bold ${statusColor}">${order.status}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            resultArea.innerHTML = html;
         }
 
         // 篩選並顯示
